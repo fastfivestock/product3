@@ -1,0 +1,560 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>패스트파이브 재고체크</title>
+<style>
+:root{
+  --bg:#eef2f6; --card:#fff; --sunk:#e6ebf1; --ink:#0f2238; --muted:#5a6a7e; --line:#d5dde7;
+  --navy:#123f73; --navy-2:#0d2f57; --tape:#f0b400; --tape-ink:#2a1f00; --tape-soft:#fff4cc;
+  --ok:#1d7f55; --ok-soft:#e3f3ec; --bad:#c3352b; --bad-soft:#fbe4e2;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:96px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:.84rem}
+/* 상단 */
+.top{background:var(--navy);color:#fff;position:sticky;top:0;z-index:20}
+.top-in{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.logo{font-family:var(--mono);font-weight:700;letter-spacing:.06em;font-size:.95rem}
+.top .where{font-size:.9rem;opacity:.85;margin-left:auto}
+.top a,.top button.link{color:#fff;opacity:.8;font-size:.85rem;background:none;border:0;text-decoration:underline}
+.stripe{height:6px;background:repeating-linear-gradient(-45deg,var(--tape) 0 12px,var(--tape-ink) 12px 24px)}
+.tape{display:inline-block;background:var(--tape);color:var(--tape-ink);font-family:var(--mono);font-weight:700;font-size:.74rem;letter-spacing:.03em;padding:2px 8px;border-radius:3px;white-space:nowrap;transform:rotate(-1deg)}
+.tape.navy{background:var(--navy);color:#fff}
+.tape.ok{background:var(--ok);color:#fff}
+.tape.gray{background:var(--sunk);color:var(--muted)}
+main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:14px}
+main.narrow{max-width:760px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.card h2{font-size:1.06rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3{font-size:.95rem}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.banner{background:var(--tape);color:var(--tape-ink);border-radius:12px;padding:12px 16px;display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font-weight:600}
+.banner .big{font-size:1.15rem;font-weight:800}
+.banner.soft{background:var(--tape-soft);border:1px dashed var(--tape);font-weight:500}
+.banner.red{background:var(--bad-soft);color:var(--bad);border:1px solid #f1c2bd}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 16px;font-weight:700;min-height:44px}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.tapeb{background:var(--tape);border-color:var(--tape);color:var(--tape-ink)}
+.btn.sm{min-height:34px;padding:5px 12px;font-size:.85rem;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.block{width:100%}
+label.f{display:grid;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600}
+input.t,select.t{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;min-height:46px;width:100%;font-size:1rem;color:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;border-top:4px solid var(--navy)}
+.kpi b{display:block;font-family:var(--mono);font-size:1.7rem;line-height:1.15}
+.kpi span{font-size:.82rem;color:var(--muted)}
+.kpi.y{border-top-color:var(--tape)} .kpi.y b{color:#9a6a00}
+.kpi.r{border-top-color:var(--bad)} .kpi.r b{color:var(--bad)}
+.kpi.g{border-top-color:var(--ok)} .kpi.g b{color:var(--ok)}
+/* 역할 선택 */
+.roles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.role{display:grid;gap:6px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;border-left:8px solid var(--tape)}
+.role b{font-size:1.15rem}
+.role .tape{justify-self:start}
+/* 품목 줄 */
+.zone{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.zone-h{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--navy);color:#fff}
+.zone-h .zn{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:var(--tape);color:var(--tape-ink);font-family:var(--mono);font-weight:800}
+.zone-h h3{font-size:1rem}
+.it{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);border-left:5px solid transparent}
+.it.low{background:var(--tape-soft);border-left-color:var(--tape)}
+.it.ok{border-left-color:#bfe3d0}
+.it .nm{font-weight:700}
+.it .meta{font-size:.8rem;color:var(--muted)}
+.step{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.step button{width:44px;height:46px;border:0;background:var(--sunk);font-size:1.3rem;font-weight:700}
+.step input{width:62px;height:46px;border:0;text-align:center;font-family:var(--mono);font-size:1.15rem;font-weight:700;background:#fff}
+.it .bar{grid-column:1/-1}
+.bar{position:relative;height:12px;background:var(--sunk);border-radius:3px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#9db3cc}
+.bar.low i{background:#e0a400}
+.bar.ok i{background:#5fae8a}
+.bar .rp{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--tape);box-shadow:0 0 0 1px var(--tape-ink)}
+.bar .bs{position:absolute;top:-2px;bottom:-2px;width:0;border-left:2px dashed var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:4px;border-radius:2px}
+/* 표 */
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;font-size:.78rem;color:var(--muted);font-weight:700;padding:8px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right}
+tr.off td{opacity:.45}
+.qin{width:64px;height:38px;border:1px solid var(--line);border-radius:8px;text-align:center;font-family:var(--mono);font-weight:700;font-size:1rem}
+.chk{width:22px;height:22px}
+.linkb{display:inline-block;font-size:.8rem;font-weight:700;padding:5px 10px;border-radius:7px;border:1px solid var(--navy);color:var(--navy);text-decoration:none;white-space:nowrap}
+.linkb.none{border-color:var(--line);color:var(--muted)}
+.list{display:grid}
+.list > div{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center;flex-wrap:wrap}
+.list > div:last-child{border-bottom:0}
+.bcard{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px;background:#fff}
+.bcard.today{border-color:var(--tape);box-shadow:inset 6px 0 0 var(--tape)}
+.grid2{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:900px){.grid2{grid-template-columns:1.25fr 1fr;align-items:start}}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.bchip{font-size:.8rem;padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:#fff;display:flex;gap:6px;align-items:center}
+.bchip.done{background:var(--ok-soft);border-color:#bfe3d0}
+.bchip.miss{background:var(--bad-soft);border-color:#f1c2bd}
+.bchip.od{outline:2px solid var(--tape)}
+/* 하단 고정 */
+.sticky{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:30}
+.sticky-in{max-width:760px;margin:0 auto;display:flex;gap:12px;align-items:center}
+.prog{flex:1;display:grid;gap:4px}
+.prog .pb{height:6px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.prog .pb i{display:block;height:100%;background:var(--tape)}
+.msg{padding:12px 14px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-weight:600}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--navy);border-radius:50%;animation:sp 1s linear infinite;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{padding:18px;text-align:center;color:var(--muted);background:var(--sunk);border-radius:10px}
+details summary{cursor:pointer;font-weight:700}
+#toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:.9rem;z-index:50;max-width:90vw}
+textarea.copy{width:100%;min-height:120px;font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);border-radius:8px;padding:8px}
+@media(max-width:560px){.hide-sm{display:none}}
+</style>
+</head>
+<body>
+<div style="background:#2a1f00;color:#f0b400;text-align:center;font-size:.8rem;padding:6px 10px">미리보기 · 가상 데이터예요. 실제 화면은 Apps Script 웹앱에서 시트와 연결돼요.</div><header class="top"><div class="top-in"><span class="logo">패스트파이브 재고체크</span><span id="roleTag"></span><span class="where" id="where"></span></div><div class="stripe"></div></header>
+<main id="app"><div class="card"><p class="muted"><span class="spin"></span> 불러오는 중…</p></div></main>
+<div id="sticky"></div>
+<div id="toast" hidden></div>
+
+<script>
+/* 미리보기 전용 가상 데이터 — 실제 웹앱에는 들어가지 않아요 */
+(function(){
+const DAY=864e5, now=Date.now();
+const ITEMS=[{"id": "1510000039", "name": "갓밀크(우유)", "zone": 1, "zoneName": "", "unit": "박스(12팩)", "rp": 6, "base": 12, "pack": 1, "ecu": "1BOX", "f": 1, "price": 16200.0, "channel": "일반", "link": "https://example.com/"}, {"id": "2026000012", "name": "레몬밤차(다하다)_디포", "zone": 1, "zoneName": "", "unit": "팩", "rp": 1, "base": 2, "pack": 1, "ecu": "1pack = 100t", "f": 1, "price": 10609.0, "channel": "일반", "link": "https://example.com/"}, {"id": "1510000033", "name": "레몬애플민트", "zone": 1, "zoneName": "", "unit": "박스(10팩)", "rp": 1, "base": 2, "pack": 1, "ecu": "1박스", "f": 1, "price": 31820.0, "channel": "일반", "link": "https://example.com/"}, {"id": "2026000017", "name": "메밀차(다하다)_디포", "zone": 1, "zoneName": "", "unit": "팩", "rp": 1, "base": 2, "pack": 1, "ecu": "1pack = 100t", "f": 1, "price": 6364.0, "channel": "일반", "link": "https://example.com/"}, {"id": "1510000040", "name": "베지밀(두유)", "zone": 1, "zoneName": "", "unit": "박스(12팩)", "rp": 6, "base": 12, "pack": 1, "ecu": "1BOX", "f": 1, "price": 19636.0, "channel": "일반", "link": "https://example.com/"}, {"id": "2026000001", "name": "보이차(다하다)_디포", "zone": 1, "zoneName": "", "unit": "팩", "rp": 1, "base": 2, "pack": 1, "ecu": "1pack = 100t", "f": 1, "price": 6472.0, "channel": "일반", "link": "https://example.com/"}, {"id": "1001000012", "name": "시럽 펌프", "zone": 1, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1EA", "f": 1, "price": 4440.0, "channel": "일반", "link": ""}, {"id": "1510000059", "name": "올인원랩_고소한맛", "zone": 1, "zoneName": "", "unit": "봉지", "rp": 20, "base": 40, "pack": 1, "ecu": "1봉지", "f": 1, "price": 12000.0, "channel": "일반", "link": ""}, {"id": "1502026", "name": "위펀_고소한맛 1kg", "zone": 1, "zoneName": "", "unit": "봉지", "rp": 10, "base": 20, "pack": 10, "ecu": "1봉지", "f": 1, "price": 10360.0, "channel": "일반", "link": ""}, {"id": "1510000046", "name": "콘앤스위트", "zone": 1, "zoneName": "", "unit": "박스(4봉지)", "rp": 2, "base": 4, "pack": 1, "ecu": "1BOX", "f": 1, "price": 29360.0, "channel": "일반", "link": ""}, {"id": "2026000005", "name": "클래식시럽(메티에)_디포", "zone": 1, "zoneName": "", "unit": "병", "rp": 1, "base": 2, "pack": 1, "ecu": "1ea = 750ml", "f": 1, "price": 4654.0, "channel": "일반", "link": ""}, {"id": "1510000060", "name": "10oz(택배배송)", "zone": 2, "zoneName": "", "unit": "박스", "rp": 1, "base": 2, "pack": 1, "ecu": "1BOX 1,000개/20묶음", "f": 1, "price": 29000.0, "channel": "일반", "link": ""}, {"id": "1510000057", "name": "9oz(택배배송)", "zone": 2, "zoneName": "", "unit": "박스", "rp": 3, "base": 6, "pack": 1, "ecu": "1BOX = 1,000개 / 20묶음", "f": 1, "price": 23000.0, "channel": "일반", "link": ""}, {"id": "1002025", "name": "두모금컵_디포", "zone": 2, "zoneName": "", "unit": "박스", "rp": 1, "base": 2, "pack": 1, "ecu": "1BOX=40줄 (1줄=50개)", "f": 1, "price": 13600.0, "channel": "일반", "link": ""}, {"id": "2026000003", "name": "물티슈(콤피앤클린)_디포", "zone": 2, "zoneName": "", "unit": "개", "rp": 30, "base": 60, "pack": 30, "ecu": "1EA", "f": 1, "price": 618.0, "channel": "일반", "link": ""}, {"id": "2026000014", "name": "핸드타월(세라비)_디포", "zone": 2, "zoneName": "", "unit": "박스", "rp": 1, "base": 2, "pack": 1, "ecu": "5000매 = 1Box", "f": 1, "price": 21218.0, "channel": "일반", "link": ""}, {"id": "1001000181", "name": "가글세트(후레쉬민트)", "zone": 3, "zoneName": "", "unit": "박스", "rp": 1, "base": 2, "pack": 1, "ecu": "1BOX", "f": 1, "price": 25800.0, "channel": "일반", "link": ""}, {"id": "1001000015", "name": "레몬젤물비누", "zone": 3, "zoneName": "", "unit": "개", "rp": 3, "base": 6, "pack": 1, "ecu": "1EA", "f": 1, "price": 5000.0, "channel": "일반", "link": ""}, {"id": "1001000174", "name": "롤백(친환경)", "zone": 3, "zoneName": "", "unit": "개", "rp": 3, "base": 6, "pack": 1, "ecu": "1EA", "f": 1, "price": 3545.0, "channel": "일반", "link": ""}, {"id": "1001000121", "name": "세니아이", "zone": 3, "zoneName": "", "unit": "개", "rp": 6, "base": 12, "pack": 1, "ecu": "1EA", "f": 1, "price": 3000.0, "channel": "일반", "link": ""}, {"id": "2026000008", "name": "수세미(우레탄)_디포", "zone": 3, "zoneName": "", "unit": "팩", "rp": 1, "base": 2, "pack": 1, "ecu": "1pack=10개입", "f": 1, "price": 7272.0, "channel": "일반", "link": ""}, {"id": "1001000016", "name": "자몽버블물비누", "zone": 3, "zoneName": "", "unit": "개", "rp": 3, "base": 6, "pack": 1, "ecu": "1EA", "f": 1, "price": 7000.0, "channel": "일반", "link": ""}, {"id": "1002037", "name": "30cm 자_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1EA", "f": 1, "price": 1540.0, "channel": "일반", "link": ""}, {"id": "1001000039", "name": "opp테이프", "zone": 4, "zoneName": "", "unit": "개", "rp": 3, "base": 6, "pack": 1, "ecu": "1EA", "f": 1, "price": 418.0, "channel": "일반", "link": ""}, {"id": "1002040", "name": "가위_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1EA", "f": 1, "price": 740.0, "channel": "일반", "link": ""}, {"id": "1002002", "name": "네임펜(블랙)_디포", "zone": 4, "zoneName": "", "unit": "묶음", "rp": 1, "base": 2, "pack": 1, "ecu": "1묶음", "f": 1, "price": 14727.0, "channel": "일반", "link": ""}, {"id": "1001000041", "name": "대봉투_디포", "zone": 4, "zoneName": "", "unit": "박스", "rp": 1, "base": 2, "pack": 1, "ecu": "1BOX", "f": 1, "price": 43636.0, "channel": "일반", "link": ""}, {"id": "1002030", "name": "딱풀_디포", "zone": 4, "zoneName": "", "unit": "묶음", "rp": 1, "base": 2, "pack": 1, "ecu": "1묶음", "f": 1, "price": 8550.0, "channel": "일반", "link": ""}, {"id": "1002027", "name": "보드마카 (레드)_디포", "zone": 4, "zoneName": "", "unit": "묶음", "rp": 2, "base": 4, "pack": 1, "ecu": "1묶음", "f": 1, "price": 6960.0, "channel": "일반", "link": ""}, {"id": "1002004", "name": "보드마카 (블랙)_디포", "zone": 4, "zoneName": "", "unit": "묶음", "rp": 1, "base": 2, "pack": 1, "ecu": "1묶음", "f": 1, "price": 6960.0, "channel": "일반", "link": ""}, {"id": "1002028", "name": "보드마카 (블루)_디포", "zone": 4, "zoneName": "", "unit": "묶음", "rp": 2, "base": 4, "pack": 1, "ecu": "1묶음", "f": 1, "price": 6960.0, "channel": "일반", "link": ""}, {"id": "1002008", "name": "복사용지A3(미스터카피)_디포", "zone": 4, "zoneName": "", "unit": "박스", "rp": 2, "base": 4, "pack": 1, "ecu": "1BOX : 2500매", "f": 1, "price": 36182.0, "channel": "일반", "link": ""}, {"id": "1002010", "name": "복사용지A4(미스터카피)_디포", "zone": 4, "zoneName": "", "unit": "박스", "rp": 3, "base": 6, "pack": 1, "ecu": "1BOX : 2500매", "f": 1, "price": 15800.0, "channel": "일반", "link": ""}, {"id": "1002012", "name": "스카치테이프 리필_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 2, "base": 4, "pack": 1, "ecu": "1EA", "f": 1, "price": 2182.0, "channel": "일반", "link": ""}, {"id": "1002011", "name": "스카치테이프_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 2, "base": 4, "pack": 1, "ecu": "1EA", "f": 1, "price": 2727.0, "channel": "일반", "link": ""}, {"id": "1002014", "name": "스테이플러 침_디포", "zone": 4, "zoneName": "", "unit": "팩", "rp": 2, "base": 4, "pack": 1, "ecu": "1팩", "f": 1, "price": 1727.0, "channel": "일반", "link": ""}, {"id": "1002013", "name": "스테이플러_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 2, "base": 4, "pack": 1, "ecu": "1EA", "f": 1, "price": 4048.0, "channel": "일반", "link": ""}, {"id": "1002018", "name": "실버클립_디포", "zone": 4, "zoneName": "", "unit": "갑", "rp": 3, "base": 6, "pack": 1, "ecu": "1갑", "f": 1, "price": 3318.0, "channel": "일반", "link": ""}, {"id": "1001000141", "name": "알카라인 건전지(AA)", "zone": 4, "zoneName": "", "unit": "팩", "rp": 1, "base": 2, "pack": 1, "ecu": "1팩", "f": 1, "price": 4800.0, "channel": "일반", "link": ""}, {"id": "1002029", "name": "양면테이프(사각)_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1EA", "f": 1, "price": 1175.0, "channel": "일반", "link": ""}, {"id": "1002035", "name": "원형인주_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1EA", "f": 1, "price": 1920.0, "channel": "일반", "link": ""}, {"id": "1002034", "name": "일자드라이버_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1EA", "f": 1, "price": 1840.0, "channel": "일반", "link": ""}, {"id": "1002038", "name": "커터칼_디포", "zone": 4, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1EA", "f": 1, "price": 818.0, "channel": "일반", "link": ""}, {"id": "1001000164", "name": "코란도 건전지(AAA)", "zone": 4, "zoneName": "", "unit": "팩", "rp": 1, "base": 2, "pack": 1, "ecu": "1팩", "f": 1, "price": 6000.0, "channel": "일반", "link": ""}, {"id": "1002016", "name": "파로클립(중)_디포", "zone": 4, "zoneName": "", "unit": "갑", "rp": 3, "base": 6, "pack": 1, "ecu": "1갑", "f": 1, "price": 9364.0, "channel": "일반", "link": ""}, {"id": "1002006", "name": "화이트보드 5겹 지우개(두문)_디포", "zone": 4, "zoneName": "", "unit": "박스", "rp": 1, "base": 2, "pack": 1, "ecu": "1box", "f": 1, "price": 7565.0, "channel": "일반", "link": ""}, {"id": "2001000004", "name": "CUPOST_신형 카드단말기 영수증", "zone": 5, "zoneName": "", "unit": "개", "rp": 1, "base": 2, "pack": 1, "ecu": "1ea", "f": 1, "price": 0.0, "channel": "일반", "link": ""}, {"id": "1001000021", "name": "랜3m", "zone": 5, "zoneName": "", "unit": "개", "rp": 30, "base": 60, "pack": 1, "ecu": "1EA", "f": 1, "price": 900.0, "channel": "일반", "link": ""}, {"id": "1001000024", "name": "멀티탭3m", "zone": 5, "zoneName": "", "unit": "개", "rp": 30, "base": 60, "pack": 1, "ecu": "1EA", "f": 1, "price": 4455.0, "channel": "일반", "link": ""}], BR=[{"code": "BR-1", "name": "신사1호점", "part": "신사파트"}, {"code": "BR-2", "name": "신사2호점", "part": "신사파트"}, {"code": "BR-3", "name": "신사콜렉티브점", "part": "신사파트"}, {"code": "BR-4", "name": "압구정점", "part": "신사파트"}, {"code": "BR-5", "name": "판교점", "part": "신사파트"}, {"code": "BR-6", "name": "교대1호점", "part": "신논현파트"}, {"code": "BR-7", "name": "서초1호점", "part": "신논현파트"}, {"code": "BR-8", "name": "서초2호점", "part": "신논현파트"}, {"code": "BR-9", "name": "서초썸머버드점", "part": "신논현파트"}, {"code": "BR-10", "name": "신논현1호점", "part": "신논현파트"}, {"code": "BR-11", "name": "신논현2호점", "part": "신논현파트"}, {"code": "BR-12", "name": "여의도1호점", "part": "여의도파트"}, {"code": "BR-13", "name": "영등포1호점", "part": "여의도파트"}, {"code": "BR-14", "name": "구로1호점", "part": "여의도파트"}, {"code": "BR-15", "name": "사당1호점", "part": "여의도파트"}, {"code": "BR-16", "name": "당산1호점", "part": "여의도파트"}, {"code": "BR-17", "name": "강남구청1호점", "part": "강남구청파트"}, {"code": "BR-18", "name": "강남구청2호점", "part": "강남구청파트"}, {"code": "BR-19", "name": "학동1호점", "part": "강남구청파트"}, {"code": "BR-20", "name": "학동2호점", "part": "강남구청파트"}, {"code": "BR-21", "name": "학동3호점", "part": "강남구청파트"}];
+let seed=7; const r=()=>(seed=seed*16807%2147483647)/2147483647;
+const DAYSETS=[[1,4],[2,5],[1,3],[3,5],[2,4]];
+BR.forEach((b,i)=>{ b.days=DAYSETS[i%5]; });
+const SV=[], OD=[];
+BR.forEach((b,bi)=>{
+  for(let k=6;k>=0;k--){
+    if(k===0 && bi%4===3) continue;
+    const at=now-k*DAY-(2+bi%5)*3600e3; const counts={};
+    ITEMS.forEach(it=>{ const x=r(); counts[it.id]= x<.18? Math.max(0,Math.floor(it.rp*r())) : it.rp+1+Math.floor((it.base-it.rp)*r()*1.1); });
+    SV.push({sid:'S'+bi+'-'+k,at,branch:b.name,who:'OC · '+['김민수','이지은','박서준'][bi%3],counts});
+  }
+  if(bi%3!==2){ const it=ITEMS[(bi*7)%ITEMS.length]; OD.push({oid:'O'+bi+'a',at:now-2*DAY,branch:b.name,wh:'W'+(100+bi),id:it.id,name:it.name,qty:it.pack*2,unit:it.unit,eqty:it.pack*2,ecu:it.ecu,amt:it.pack*2*it.price,link:it.link,status:'발주완료',doneAt:now-1.5*DAY,mgr:'매니저',reason:'현재 1 · 발주선 '+it.rp+' 이하 → 기준 '+it.base+'까지'}); }
+  if(bi%2===0){ [3,11,19].forEach((j,n)=>{ const it=ITEMS[(bi+j)%ITEMS.length]; const q=Math.max(it.pack,it.base-it.rp); OD.push({oid:'O'+bi+'r'+n,at:now-3*3600e3,branch:b.name,wh:'W'+(100+bi),id:it.id,name:it.name,qty:q,unit:it.unit,eqty:q,ecu:it.ecu,amt:q*it.price,link:it.link,status:'요청',doneAt:null,mgr:['김매니저','최매니저'][bi%2],reason:'현재 '+Math.floor(it.rp/2)+' · 발주선 '+it.rp+' 이하 → 기준 '+it.base+'까지'}); }); }
+});
+const find=c=>BR.find(b=>b.code===c)||(()=>{throw new Error('지점을 다시 골라 주세요.')})();
+const svOf=n=>SV.filter(s=>s.branch===n).sort((a,b)=>b.at-a.at);
+window.MOCK={
+  getBoot:()=>({branches:BR.map(b=>({code:b.code,name:b.name,part:b.part,days:b.days})),now:Date.now()}),
+  ocLoad:(c)=>{ const b=find(c); return {branch:b,items:ITEMS,last:svOf(b.name)[0]||null}; },
+  ocSubmit:(p)=>{ const b=find(p.code); const at=Date.now(); SV.push({sid:'S'+at,at,branch:b.name,who:'OC · '+p.who,counts:Object.fromEntries(Object.entries(p.counts).map(([k,v])=>[k,Number(v)]))}); return {ok:true,n:ITEMS.length,below:ITEMS.filter(i=>Number(p.counts[i.id])<=i.rp).map(i=>i.name),at}; },
+  mgrLoad:(c)=>{ const b=find(c); const sv=svOf(b.name); return {branch:b,items:ITEMS,latest:sv[0]||null,prev:sv[1]||null,history:sv.slice(0,10),orders:OD.filter(o=>o.branch===b.name),transitDays:5,now:Date.now()}; },
+  mgrConfirm:(p)=>{ const b=find(p.code); p.lines.forEach((l,i)=>{ const it=ITEMS.find(x=>x.id===l.id); OD.push({oid:'N'+Date.now()+i,at:Date.now(),branch:b.name,wh:'',id:it.id,name:it.name,qty:l.qty,unit:it.unit,eqty:l.qty*it.f,ecu:it.ecu,amt:l.qty*it.f*it.price,link:it.link,status:'요청',doneAt:null,mgr:p.name||'매니저',reason:l.reason}); }); return {ok:true,n:p.lines.length}; },
+  mgrCancel:(p)=>{ const o=OD.find(x=>x.oid===p.oid); if(o.status!=='요청') throw new Error('물류팀이 이미 처리한 발주는 취소할 수 없어요.'); o.status='취소'; return {ok:true}; },
+  logiLoad:()=>{ const last={}; SV.forEach(s=>{ if(!last[s.branch]||s.at>last[s.branch]) last[s.branch]=s.at; }); const links={}; ITEMS.forEach(i=>links[i.id]={link:i.link,channel:i.channel}); return {orders:OD.filter(o=>o.status==='요청'||(o.status==='발주완료'&&o.doneAt>Date.now()-7*DAY)),branches:BR.map(b=>({...b,lastAt:last[b.name]||null})),links,now:Date.now()}; },
+  logiSettings:()=>({branches:BR.map(b=>({code:b.code,name:b.name,part:b.part,d1:'일월화수목금토'[b.days[0]]||'',d2:'일월화수목금토'[b.days[1]]||'',mult:b.mult||1,use:'Y'})),items:ITEMS.map(i=>({id:i.id,name:i.name,zone:i.zone,unit:i.unit,rp:i.rp,base:i.base,pack:i.pack,link:i.link,use:i.use||'Y'}))}),
+  logiSaveBranches:(p)=>{ p.rows.forEach(x=>{ const b=BR.find(y=>y.code===x.code); const D='일월화수목금토'; b.days=[x.d1,x.d2].filter(Boolean).map(c=>D.indexOf(c)); b.mult=Number(x.mult)||1; }); return {ok:true,n:p.rows.length}; },
+  logiSaveItems:(p)=>{ p.rows.forEach(x=>{ const i=ITEMS.find(y=>y.id===x.id); i.rp=Number(x.rp); i.base=Number(x.base); i.pack=Number(x.pack); i.link=x.link; i.use=x.use; }); return {ok:true,n:p.rows.length}; },
+  logiDone:(p)=>{ let n=0; OD.forEach(o=>{ if(p.oids.includes(o.oid)&&o.status==='요청'){ o.status='발주완료'; o.doneAt=Date.now(); n++; } }); return {ok:true,n}; }
+};
+})();
+</script>
+<script>
+const BOOT = { code: (new URLSearchParams(location.search).get('b')||''), role: (new URLSearchParams(location.search).get('r')||'') };
+const ZN = {1:'식품·음료',2:'종이·컵',3:'위생·세제',4:'사무용품',5:'비품·기타'};
+const DOW = '일월화수목금토';
+const DAY = 864e5;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => (Math.round(n*100)/100).toLocaleString('ko-KR');
+const won = n => Math.round(n||0).toLocaleString('ko-KR') + '원';
+const ls = { get(k,d){ try{ const v=localStorage.getItem('ff3_'+k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem('ff3_'+k, JSON.stringify(v)); }catch(e){} } };
+const fmtT = t => { if(!t) return '–'; const d=new Date(t); return `${d.getMonth()+1}/${d.getDate()}(${DOW[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const today0 = () => { const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); };
+const ago = t => { if(!t) return '기록 없음'; if(t>=today0()) return '오늘 '+fmtT(t).split(' ')[1]; const n=Math.ceil((today0()-t)/DAY); return n===1?'어제':n+'일 전'; };
+function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.h); toast.h=setTimeout(()=>t.hidden=true,3500); }
+function call(fn, ...args){
+  return new Promise((res, rej) => {
+    if (window.google && google.script && google.script.run) google.script.run.withSuccessHandler(res).withFailureHandler(e => rej(new Error((e && e.message) || '연결 오류'))) [fn](...args);
+    else if (window.MOCK) { try { res(JSON.parse(JSON.stringify(window.MOCK[fn](...args)))); } catch(e){ rej(e); } }
+    else rej(new Error('서버에 연결할 수 없어요.'));
+  });
+}
+function nextOrderDay(days){
+  if(!days || !days.length) return null;
+  const t0=today0();
+  for(let i=0;i<8;i++){ const d=new Date(t0+i*DAY); if(days.includes(d.getDay())) return {d, i}; }
+  return null;
+}
+const dayTxt = days => days && days.length ? days.slice().sort((a,b)=>((a+6)%7)-((b+6)%7)).map(d=>DOW[d]).join('·') : '미정';
+function barHtml(q, it){
+  const scale = Math.max(it.base*1.25, q||0, 1);
+  const w = q==null?0:Math.min(100, q/scale*100);
+  const cls = q==null?'':(q<=it.rp?'low':'ok');
+  return `<div class="bar ${cls}" title="현재 ${q??'–'} · 발주선 ${it.rp} · 기준 ${it.base}"><i style="width:${w}%"></i><span class="rp" style="left:${it.rp/scale*100}%"></span><span class="bs" style="left:${it.base/scale*100}%"></span></div>`;
+}
+const legend = `<div class="legend"><span><i style="background:var(--tape);box-shadow:0 0 0 1px var(--tape-ink)"></i>발주선 (이하면 발주)</span><span><i style="border-left:2px dashed var(--muted);border-radius:0;width:6px"></i>기준 수량 (여기까지 채움)</span></div>`;
+function setTop(roleLabel, where){ $('#roleTag').innerHTML = roleLabel?`<span class="tape">${esc(roleLabel)}</span>`:''; $('#where').innerHTML = where||''; }
+function homeLink(){ return BOOT.code ? '' : `<button class="link" onclick="goHome()">처음으로</button>`; }
+
+const S = { boot:null };
+
+/* ================= 처음 화면 ================= */
+async function start(){
+  try { S.boot = await call('getBoot'); } catch(e){ return fatal(e); }
+  if (BOOT.code) return ocLogin();
+  if (BOOT.role==='m') return mgrLogin();
+  if (BOOT.role==='l') return logiLogin();
+  goHome();
+}
+function goHome(){
+  setTop('', '');
+  $('#sticky').innerHTML='';
+  $('#app').className='narrow';
+  $('#app').innerHTML = `
+  <div class="banner"><span class="big">패스트파이브 재고체크</span><span>OC가 세고 → 매니저가 확인하고 → 물류팀이 주문해요</span></div>
+  <div class="roles">
+    <button class="role" onclick="ocLogin()"><span class="tape">OC</span><b>재고조사</b><span class="small muted">창고에서 품목별 수량을 적어요. 하루 1번, 5분.</span></button>
+    <button class="role" onclick="mgrLogin()"><span class="tape">매니저</span><b>추천 발주 확인</b><span class="small muted">조사 결과로 만들어진 발주 목록을 보고 확인 버튼만 눌러요.</span></button>
+    <button class="role" onclick="logiLogin()"><span class="tape">물류팀</span><b>발주함</b><span class="small muted">지점별 요청을 모아 보고, 주문 후 '발주 완료'를 눌러요.</span></button>
+  </div>
+  <div class="card"><h2>흐름</h2>
+    <div class="list">
+      <div><span><b>1. OC</b> · 창고 QR → 품목별 수량 입력</span><span class="small muted">매일</span></div>
+      <div><span><b>2. 자동 계산</b> · <span class="tape">발주선</span> 이하인 품목은 기준 수량까지 채우는 양을 계산</span><span class="small muted">바로</span></div>
+      <div><span><b>3. 매니저</b> · 추천 목록 확인 → 물류팀에 보내기</span><span class="small muted">발주 요일 (주 2회)</span></div>
+      <div><span><b>4. 물류팀</b> · 품목별 합계·구매 링크로 주문 → 발주 완료</span><span class="small muted">요청 들어온 날</span></div>
+    </div>
+  </div>`;
+}
+function fatal(e){ $('#app').innerHTML = `<div class="msg">${esc(e.message||e)}</div>`; }
+function branchSelect(id, sel){ return `<select class="t" id="${id}"><option value="">지점 선택</option>${S.boot.branches.map(b=>`<option value="${esc(b.code)}" ${b.code===sel?'selected':''}>${esc(b.name)}</option>`).join('')}</select>`; }
+
+/* ================= OC ================= */
+const OC = { d:null, counts:{}, who:'', pin:'' };
+function ocLogin(err){
+  $('#app').className='narrow'; $('#sticky').innerHTML='';
+  const fixed = BOOT.code && S.boot.branches.find(b=>b.code===BOOT.code);
+  setTop('OC 재고조사', homeLink());
+  const code = fixed ? fixed.code : ls.get('oc_code','');
+  $('#app').innerHTML = `
+  ${err?`<div class="msg">${esc(err)}</div>`:''}
+  <div class="card">
+    <h2>${fixed?esc(fixed.name)+' 재고조사':'재고조사 시작'}</h2>
+    ${fixed?'':`<label class="f">지점${branchSelect('ocB', code)}</label>`}
+    <label class="f">지점 PIN<input class="t num" id="ocPin" inputmode="numeric" maxlength="6" autocomplete="off" value="${esc(ls.get('oc_pin_'+code,''))}"></label>
+    <label class="f">이름<input class="t" id="ocWho" maxlength="20" value="${esc(ls.get('oc_who',''))}" placeholder="예: 김민수"></label>
+    <button class="btn pri block" id="ocGo">시작하기</button>
+    <p class="small muted">1번 구역부터 선반 순서대로 수량을 적어요. 박스는 <b>뜯지 않은 박스 수</b>, 낱개는 <b>개수</b>예요.</p>
+  </div>`;
+  $('#ocGo').onclick = async () => {
+    const c = fixed ? fixed.code : $('#ocB').value; const pin=$('#ocPin').value.trim(); const who=$('#ocWho').value.trim();
+    if(!c) return toast('지점을 골라 주세요'); if(!who) return toast('이름을 적어 주세요');
+    $('#ocGo').disabled=true; $('#ocGo').innerHTML='<span class="spin"></span>';
+    try{
+      OC.d = await call('ocLoad', c, pin); OC.pin=pin; OC.who=who; OC.code=c;
+      ls.set('oc_code',c); ls.set('oc_pin_'+c,pin); ls.set('oc_who',who);
+      const dr = ls.get('oc_draft_'+c, null);
+      OC.counts = dr && dr.day===today0() ? dr.counts : {};
+      ocRender();
+    }catch(e){ ocLogin(e.message); }
+  };
+}
+function ocSave(){ ls.set('oc_draft_'+OC.code, {day:today0(), counts:OC.counts}); }
+function ocRender(){
+  const d=OC.d; setTop('OC 재고조사', `${esc(d.branch.name)} · ${esc(OC.who)}`);
+  const zones=[1,2,3,4,5].map(z=>[z,d.items.filter(i=>i.zone===z)]).filter(([,l])=>l.length);
+  const last = d.last ? d.last.counts : {};
+  $('#app').innerHTML = `
+  <div class="banner soft"><span>수량을 적으면 <span class="tape">발주선</span> 아래 품목이 노랗게 표시돼요. 노란 품목은 매니저에게 발주 추천으로 올라가요.</span></div>
+  ${legend}
+  ${zones.map(([z,list])=>`<section class="zone">
+    <div class="zone-h"><span class="zn">${z}</span><h3>${ZN[z]}</h3><span class="small" style="margin-left:auto;opacity:.8">${list.length}개</span></div>
+    ${list.map(it=>ocItem(it,last)).join('')}
+  </section>`).join('')}`;
+  ocSticky();
+}
+function ocItem(it,last){
+  const q = OC.counts[it.id]; const has = q!==undefined && q!=='';
+  const cls = has ? (Number(q)<=it.rp?'low':'ok') : '';
+  return `<div class="it ${cls}" id="row_${esc(it.id)}">
+    <div><div class="nm">${esc(it.name)} ${cls==='low'?'<span class="tape">발주 필요</span>':''}</div>
+      <div class="meta">단위 <b>${esc(it.unit)}</b> · 발주선 ${it.rp} · 기준 ${it.base}${last[it.id]!=null?` · 지난번 ${last[it.id]}`:''}</div></div>
+    <div class="step"><button aria-label="빼기" onclick="ocStep('${esc(it.id)}',-1)">−</button><input inputmode="numeric" pattern="[0-9]*" aria-label="${esc(it.name)} 수량" value="${has?esc(q):''}" oninput="ocSet('${esc(it.id)}',this.value)"><button aria-label="더하기" onclick="ocStep('${esc(it.id)}',1)">+</button></div>
+    ${barHtml(has?Number(q):null,it)}
+  </div>`;
+}
+function ocSet(id,v){ v=String(v).replace(/[^0-9.]/g,''); if(v==='') delete OC.counts[id]; else OC.counts[id]=v; ocSave(); ocRefreshRow(id,false); ocSticky(); }
+function ocStep(id,dlt){ const cur=OC.counts[id]; const n=Math.max(0,(cur===undefined||cur===''?0:Number(cur))+dlt); OC.counts[id]=String(n); ocSave(); ocRefreshRow(id,true); ocSticky(); }
+function ocRefreshRow(id, replaceInput){
+  const it=OC.d.items.find(x=>x.id===id); const row=document.getElementById('row_'+id); if(!row) return;
+  const tmp=document.createElement('div'); tmp.innerHTML=ocItem(it, OC.d.last?OC.d.last.counts:{});
+  const nr=tmp.firstElementChild;
+  if(!replaceInput){ row.className=nr.className; row.querySelector('.nm').innerHTML=nr.querySelector('.nm').innerHTML; row.querySelector('.bar').outerHTML=nr.querySelector('.bar').outerHTML; }
+  else row.replaceWith(nr);
+}
+function ocSticky(){
+  const tot=OC.d.items.length, n=OC.d.items.filter(i=>OC.counts[i.id]!==undefined&&OC.counts[i.id]!=='').length;
+  const low=OC.d.items.filter(i=>OC.counts[i.id]!==undefined&&OC.counts[i.id]!==''&&Number(OC.counts[i.id])<=i.rp).length;
+  $('#sticky').innerHTML=`<div class="sticky"><div class="sticky-in">
+    <div class="prog"><span class="small"><b class="num">${n}</b> / ${tot} 품목${low?` · <span class="tape">발주선 아래 ${low}</span>`:''}</span><div class="pb"><i style="width:${tot?n/tot*100:0}%"></i></div></div>
+    <button class="btn pri" id="ocSend" ${n<tot?'disabled':''}>${n<tot?`${tot-n}개 남음`:'제출'}</button></div></div>`;
+  $('#ocSend').onclick=ocSubmit;
+}
+async function ocSubmit(){
+  const b=$('#ocSend'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
+  try{
+    const r=await call('ocSubmit',{code:OC.code,pin:OC.pin,who:OC.who,counts:OC.counts});
+    ls.set('oc_draft_'+OC.code,null); OC.counts={};
+    $('#sticky').innerHTML=''; window.scrollTo(0,0);
+    $('#app').innerHTML=`<div class="card" style="text-align:center;gap:10px">
+      <span class="tape ok" style="justify-self:center">제출 완료</span>
+      <h2 style="justify-content:center">${esc(OC.d.branch.name)} · ${fmtT(r.at)}</h2>
+      <p>${r.n}개 품목을 기록했어요.</p>
+      ${r.below.length?`<div class="banner" style="justify-content:center">발주선 아래 ${r.below.length}개 → 매니저 확인 목록으로 갔어요</div><p class="small muted">${r.below.map(esc).join(', ')}</p>`:`<p class="muted">발주선 아래 품목이 없어요. 오늘은 발주할 게 없어요.</p>`}
+      <p class="small muted">창을 닫아도 돼요.</p></div>`;
+  }catch(e){ toast(e.message); ocSticky(); }
+}
+
+/* ================= 매니저 ================= */
+const MG = { d:null, code:'', pin:'', name:'', sel:{}, qty:{} };
+function mgrLogin(err){
+  $('#app').className='narrow'; $('#sticky').innerHTML='';
+  setTop('매니저', homeLink());
+  const code=ls.get('mg_code','');
+  $('#app').innerHTML=`${err?`<div class="msg">${esc(err)}</div>`:''}
+  <div class="card"><h2>매니저 · 추천 발주 확인</h2>
+    <label class="f">지점${branchSelect('mgB',code)}</label>
+    <label class="f">매니저 PIN<input class="t num" id="mgPin" inputmode="numeric" maxlength="6" value="${esc(ls.get('mg_pin_'+code,''))}"></label>
+    <label class="f">이름<input class="t" id="mgName" maxlength="20" value="${esc(ls.get('mg_name',''))}"></label>
+    <button class="btn pri block" id="mgGo">열기</button>
+    <p class="small muted">이 기기에서는 다음부터 바로 열려요.</p></div>`;
+  $('#mgGo').onclick=async()=>{
+    const c=$('#mgB').value, pin=$('#mgPin').value.trim(), nm=$('#mgName').value.trim();
+    if(!c) return toast('지점을 골라 주세요');
+    $('#mgGo').disabled=true; $('#mgGo').innerHTML='<span class="spin"></span>';
+    try{ await mgrOpen(c,pin,nm); }catch(e){ mgrLogin(e.message); }
+  };
+  if(code && ls.get('mg_pin_'+code,'') && !err) $('#mgGo').click();
+}
+async function mgrOpen(c,pin,nm){
+  MG.d=await call('mgrLoad',c,pin); MG.code=c; MG.pin=pin; MG.name=nm||ls.get('mg_name','');
+  ls.set('mg_code',c); ls.set('mg_pin_'+c,pin); if(nm) ls.set('mg_name',nm);
+  MG.sel={}; MG.qty={}; mgrRender();
+}
+function mgrAnalyze(d){
+  const latest=d.latest, prevC=d.prev?d.prev.counts:{};
+  const open=d.orders.filter(o=>o.status==='요청'||(o.status==='발주완료'&&(d.now-(o.doneAt||o.at))<d.transitDays*DAY));
+  const openBy={}; open.forEach(o=>(openBy[o.id]=openBy[o.id]||[]).push(o));
+  const rows=d.items.map(it=>{
+    const cur=latest&&latest.counts[it.id]!=null?Number(latest.counts[it.id]):null;
+    const below=cur!=null&&cur<=it.rp;
+    const op=openBy[it.id]||null;
+    const need=below&&!op;
+    const qty=need?Math.max(it.pack,Math.ceil((it.base-cur)/it.pack)*it.pack):0;
+    const prev=prevC[it.id]!=null?Number(prevC[it.id]):null;
+    return {...it,cur,below,open:op,qty,prev,delta:cur!=null&&prev!=null?cur-prev:null,
+      reason:cur==null?'':`현재 ${cur} · 발주선 ${it.rp} 이하 → 기준 ${it.base}까지`};
+  });
+  return {rows,recs:rows.filter(r=>r.qty>0),below:rows.filter(r=>r.below),open};
+}
+function mgrRender(){
+  const d=MG.d, A=mgrAnalyze(d); setTop('매니저', `${esc(d.branch.name)} · ${homeLink()}`);
+  $('#app').className='';
+  const nod=nextOrderDay(d.branch.days), latest=d.latest;
+  const fresh=latest&&latest.at>=today0();
+  A.recs.forEach(r=>{ if(MG.sel[r.id]===undefined) MG.sel[r.id]=true; if(MG.qty[r.id]===undefined) MG.qty[r.id]=r.qty; });
+  const selRecs=A.recs.filter(r=>MG.sel[r.id]&&Number(MG.qty[r.id])>0);
+  const amt=selRecs.reduce((s,r)=>s+Number(MG.qty[r.id])*r.f*r.price,0);
+  const req=d.orders.filter(o=>o.status==='요청'), ship=d.orders.filter(o=>o.status==='발주완료'&&(d.now-(o.doneAt||o.at))<d.transitDays*DAY);
+  const drops=A.rows.filter(r=>r.delta!=null&&r.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,3);
+  const summary = !latest ? '아직 OC 재고조사가 없어요.' :
+    A.below.length===0 ? '모든 품목이 발주선 위에 있어요. 오늘은 보낼 게 없어요.' :
+    `발주선 아래 ${A.below.length}개 중 ${A.recs.length}개를 추천해요${A.below.length-A.recs.length?` (${A.below.length-A.recs.length}개는 이미 요청·배송 중)`:''}.`;
+  $('#app').innerHTML=`
+  <div class="banner">${nod?(nod.i===0?`<span class="big">오늘은 발주 요일이에요</span><span>(${dayTxt(d.branch.days)})</span>`:`<span>다음 발주 요일</span><span class="big">${DOW[nod.d.getDay()]} ${nod.d.getMonth()+1}/${nod.d.getDate()}</span><span>(${nod.i}일 뒤 · 매주 ${dayTxt(d.branch.days)})</span>`):`<span>이 지점은 발주 요일이 아직 없어요. 시트 '지점' 탭 D·E열에 정해 주세요.</span>`}</div>
+  ${latest&&!fresh?`<div class="banner red">오늘 OC 재고조사가 아직 없어요. 아래 추천은 ${fmtT(latest.at)} 조사 기준이에요.</div>`:''}
+  <div class="kpis">
+    <div class="kpi ${fresh?'g':'r'}"><b style="font-size:1.15rem;padding:6px 0">${latest?ago(latest.at):'없음'}</b><span>최근 조사 · ${latest?esc(latest.who):'–'}</span></div>
+    <div class="kpi y"><b>${A.below.length}</b><span>발주선 아래 품목</span></div>
+    <div class="kpi"><b>${A.recs.length}</b><span>추천 발주 품목</span></div>
+    <div class="kpi"><b style="font-size:1.25rem;padding:4px 0">${won(amt)}</b><span>선택한 발주 예상 금액</span></div>
+    <div class="kpi g"><b>${req.length+ship.length}</b><span>요청됨·배송 중</span></div>
+  </div>
+  <div class="grid2">
+  <section class="card">
+    <h2><span class="tape">추천 발주</span> ${latest?fmtT(latest.at)+' 조사 기준':''}</h2>
+    <p>${esc(summary)}${drops.length?` <span class="small muted">지난 조사보다 많이 줄어든 품목: ${drops.map(r=>`${esc(r.name)} ${r.delta}`).join(', ')}</span>`:''}</p>
+    ${A.recs.length?`<div class="tbl"><table><thead><tr><th></th><th>품목</th><th class="hide-sm">재고</th><th class="n">현재</th><th class="n">기준</th><th>발주</th></tr></thead><tbody>
+      ${A.recs.map(r=>`<tr class="${MG.sel[r.id]?'':'off'}"><td><input type="checkbox" class="chk" ${MG.sel[r.id]?'checked':''} onchange="MG.sel['${esc(r.id)}']=this.checked;mgrRender()" aria-label="${esc(r.name)} 선택"></td>
+        <td><b>${esc(r.name)}</b><div class="small muted">${esc(r.reason)}</div></td>
+        <td class="hide-sm" style="min-width:120px">${barHtml(r.cur,r)}</td>
+        <td class="n num"><b>${r.cur}</b></td><td class="n num">${r.base}</td>
+        <td style="white-space:nowrap"><input class="qin" inputmode="numeric" value="${esc(MG.qty[r.id])}" onchange="MG.qty['${esc(r.id)}']=this.value.replace(/[^0-9.]/g,'');mgrRender()" aria-label="${esc(r.name)} 발주 수량"> <span class="small muted">${esc(r.unit)}</span></td></tr>`).join('')}
+    </tbody></table></div>
+    ${legend}
+    <div class="row"><button class="btn tapeb" id="mgSend" ${selRecs.length?'':'disabled'}>확인 · 물류팀에 보내기 (${selRecs.length}개)</button><span class="small muted">수량은 바꿀 수 있어요. 체크를 풀면 이번엔 안 보내요.</span></div>`
+    :`<div class="empty">${latest?'보낼 추천 품목이 없어요.':'OC가 재고조사를 하면 여기에 추천 목록이 생겨요.'}</div>`}
+  </section>
+  <div style="display:grid;gap:14px">
+  <section class="card"><h2>요청됨 · 배송 중</h2>
+    ${req.length+ship.length?`<div class="list">${req.map(o=>`<div><span><b>${esc(o.name)}</b> <span class="num">${fmt(o.qty)}</span> ${esc(o.unit)}<br><span class="small muted">${fmtT(o.at)} 요청 · ${esc(o.mgr)}</span></span><span class="row"><span class="tape">요청</span><button class="btn sm" onclick="mgrCancel('${esc(o.oid)}')">취소</button></span></div>`).join('')}
+      ${ship.map(o=>`<div><span><b>${esc(o.name)}</b> <span class="num">${fmt(o.qty)}</span> ${esc(o.unit)}<br><span class="small muted">${fmtT(o.doneAt)} 발주 완료</span></span><span class="tape ok">배송 중</span></div>`).join('')}</div>
+      <p class="small muted">발주 완료 후 ${d.transitDays}일 동안은 배송 중으로 보고 추천에서 빼요.</p>`:`<div class="empty small">진행 중인 발주가 없어요.</div>`}
+  </section>
+  <section class="card"><h2>최근 조사 · 발주선 아래 품목 수</h2>${histChart(d)}</section>
+  </div></div>
+  <section class="card"><details><summary>전체 재고 현황 (${A.rows.length}개 품목)</summary>
+    <div style="display:grid;gap:12px;margin-top:12px">${legend}
+    ${[1,2,3,4,5].map(z=>{const L=A.rows.filter(r=>r.zone===z); if(!L.length) return ''; return `<div><h3 style="margin-bottom:6px"><span class="tape navy">${z}</span> ${ZN[z]}</h3><div class="tbl"><table><tbody>${L.map(r=>`<tr><td style="width:38%">${esc(r.name)} ${r.below?'<span class="tape">발주선 아래</span>':''}</td><td style="min-width:140px">${barHtml(r.cur,r)}</td><td class="n num" style="width:70px"><b>${r.cur??'–'}</b>/${r.base}</td><td class="small muted" style="width:70px">${r.delta==null?'':(r.delta>0?'+':'')+r.delta}</td></tr>`).join('')}</tbody></table></div></div>`;}).join('')}
+    </div></details></section>`;
+  const sb=$('#mgSend'); if(sb) sb.onclick=mgrSend;
+}
+function histChart(d){
+  const H=(d.history||[]).slice(0,10).reverse(); if(!H.length) return '<div class="empty small">조사 기록이 쌓이면 그래프가 생겨요.</div>';
+  const items=d.items; const vals=H.map(h=>items.filter(it=>h.counts[it.id]!=null&&Number(h.counts[it.id])<=it.rp).length);
+  const W=420,Hh=150,pl=24,pb=24,pt=14,max=Math.max(1,...vals),step=(W-pl-6)/H.length,bw=Math.min(30,step*.6);
+  const y=v=>pt+(Hh-pt-pb)*(1-v/max);
+  const bars=H.map((h,i)=>{const x=pl+i*step+(step-bw)/2, dt=new Date(h.at); return `<rect x="${x}" y="${y(vals[i])}" width="${bw}" height="${Math.max(0,y(0)-y(vals[i]))}" rx="3" fill="var(--tape)" stroke="var(--tape-ink)" stroke-width=".6"/><text x="${x+bw/2}" y="${y(vals[i])-4}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">${vals[i]}</text><text x="${x+bw/2}" y="${Hh-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${dt.getMonth()+1}/${dt.getDate()}</text>`;}).join('');
+  return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" role="img" aria-label="최근 조사별 발주선 아래 품목 수"><line x1="${pl}" x2="${W-4}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)"/>${bars}</svg><p class="small muted">막대가 낮을수록 창고가 잘 채워진 상태예요.</p>`;
+}
+async function mgrSend(){
+  const d=MG.d, A=mgrAnalyze(d);
+  const lines=A.recs.filter(r=>MG.sel[r.id]&&Number(MG.qty[r.id])>0).map(r=>({id:r.id,qty:Number(MG.qty[r.id]),reason:r.reason+(Number(MG.qty[r.id])!==r.qty?` (추천 ${r.qty} → ${MG.qty[r.id]})`:'')}));
+  const b=$('#mgSend'); b.disabled=true; b.innerHTML='<span class="spin"></span> 보내는 중';
+  try{ const r=await call('mgrConfirm',{code:MG.code,pin:MG.pin,name:MG.name,lines}); toast(`${r.n}개 품목을 물류팀에 보냈어요`); await mgrOpen(MG.code,MG.pin,MG.name); }
+  catch(e){ toast(e.message); mgrRender(); }
+}
+async function mgrCancel(oid){
+  try{ await call('mgrCancel',{code:MG.code,pin:MG.pin,oid}); toast('요청을 취소했어요'); await mgrOpen(MG.code,MG.pin,MG.name); }catch(e){ toast(e.message); }
+}
+
+/* ================= 물류팀 ================= */
+const LG = { d:null, pin:'', tab:'box', set:null, bE:{}, iE:{} };
+function logiLogin(err){
+  $('#app').className='narrow'; $('#sticky').innerHTML=''; setTop('물류팀', homeLink());
+  $('#app').innerHTML=`${err?`<div class="msg">${esc(err)}</div>`:''}<div class="card"><h2>물류팀 · 발주함</h2>
+    <label class="f">물류팀 PIN<input class="t num" id="lgPin" inputmode="numeric" maxlength="6" value="${esc(ls.get('lg_pin',''))}"></label>
+    <button class="btn pri block" id="lgGo">열기</button></div>`;
+  $('#lgGo').onclick=async()=>{ const pin=$('#lgPin').value.trim(); $('#lgGo').disabled=true; $('#lgGo').innerHTML='<span class="spin"></span>';
+    try{ await logiOpen(pin); }catch(e){ logiLogin(e.message); } };
+  if(ls.get('lg_pin','')&&!err) $('#lgGo').click();
+}
+async function logiOpen(pin){ LG.d=await call('logiLoad',pin); LG.pin=pin; ls.set('lg_pin',pin); LG.tab==='set'?logiSet():logiRender(); }
+function logiTabs(){ return `<div class="row"><button class="btn sm ${LG.tab==='box'?'pri':''}" onclick="LG.tab='box';logiRender()">발주함</button><button class="btn sm ${LG.tab==='set'?'pri':''}" onclick="logiSet()">설정 (요일·품목 기준)</button></div>`; }
+function logiRender(){
+  const d=LG.d; setTop('물류팀', homeLink()); $('#app').className=''; $('#sticky').innerHTML=''; LG.tab='box';
+  const req=d.orders.filter(o=>o.status==='요청'), done=d.orders.filter(o=>o.status==='발주완료').sort((a,b)=>b.doneAt-a.doneAt);
+  const byB={}; req.forEach(o=>(byB[o.branch]=byB[o.branch]||[]).push(o));
+  const byI={}; req.forEach(o=>{ const k=o.id; const x=byI[k]||(byI[k]={id:k,name:o.name,eqty:0,ecu:o.ecu,amt:0,br:new Set(),link:o.link||(d.links[k]||{}).link||'',channel:(d.links[k]||{}).channel||''}); x.eqty+=o.eqty; x.amt+=o.amt; x.br.add(o.branch); });
+  const items=Object.values(byI).sort((a,b)=>b.br.size-a.br.size||b.eqty-a.eqty);
+  const dow=new Date().getDay();
+  const odToday=d.branches.filter(b=>b.days.includes(dow));
+  const total=req.reduce((s,o)=>s+o.amt,0);
+  $('#app').innerHTML=`${logiTabs()}
+  <div class="banner"><span class="big">새 요청 ${req.length}건</span><span>${Object.keys(byB).length}개 지점 · 예상 ${won(total)}</span>${req.length?`<button class="btn sm" style="margin-left:auto;background:var(--tape-ink);color:var(--tape);border:0" onclick="logiDoneAll()">전체 발주 완료</button>`:''}</div>
+  <div class="kpis">
+    <div class="kpi y"><b>${req.length}</b><span>새 요청 품목</span></div>
+    <div class="kpi"><b>${items.length}</b><span>묶으면 품목 종류</span></div>
+    <div class="kpi g"><b>${done.length}</b><span>최근 7일 발주 완료</span></div>
+    <div class="kpi ${odToday.filter(b=>!(b.lastAt>=today0())).length?'r':''}"><b>${odToday.length}</b><span>오늘(${DOW[dow]}) 발주 요일 지점</span></div>
+  </div>
+  <div class="grid2">
+  <section class="card"><h2><span class="tape">품목별 합계</span> 한 번에 주문</h2>
+    ${items.length?`<div class="tbl"><table><thead><tr><th>품목</th><th class="n">이카운트 수량</th><th class="n hide-sm">금액</th><th class="n">지점</th><th>구매</th></tr></thead><tbody>
+      ${items.map(x=>`<tr><td><b>${esc(x.name)}</b><div class="small muted">${esc(x.id)}${x.channel?' · '+esc(x.channel):''}</div></td><td class="n num"><b>${fmt(x.eqty)}</b> <span class="small muted">${esc(x.ecu)}</span></td><td class="n num hide-sm">${won(x.amt)}</td><td class="n num">${x.br.size}</td><td>${x.link?`<a class="linkb" href="${esc(x.link)}" target="_blank" rel="noopener">구매 링크</a>`:`<span class="linkb none" title="시트 '품목' L열에 링크를 넣으면 생겨요">링크 없음</span>`}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row"><button class="btn sm" onclick="logiCopy()">이카운트 업로드용 복사</button><span class="small muted">일자·창고코드·품목코드·수량·단위·지점</span></div><div id="copyBox"></div>`
+    :`<div class="empty">새 요청이 없어요.</div>`}
+  </section>
+  <section class="card"><h2>지점별 요청</h2>
+    ${Object.keys(byB).length?Object.entries(byB).map(([b,list])=>{ const br=d.branches.find(x=>x.name===b)||{days:[]}; return `<div class="bcard ${br.days.includes(dow)?'today':''}">
+      <div class="row between"><span><b>${esc(b)}</b> <span class="small muted">요청 요일 ${dayTxt(br.days)} · ${esc(list[0].mgr)} 확인</span></span><button class="btn sm pri" onclick="logiDone('${esc(b)}')">발주 완료</button></div>
+      <div class="list">${list.map(o=>`<div><span>${esc(o.name)}<br><span class="small muted">${esc(o.reason)}</span></span><span class="num"><b>${fmt(o.qty)}</b> <span class="small muted">${esc(o.unit)}</span></span></div>`).join('')}</div></div>`; }).join(''):`<div class="empty small">처리할 요청이 없어요.</div>`}
+  </section></div>
+  <section class="card"><h2>지점 현황 · 오늘 재고조사</h2>
+    <div class="chips">${d.branches.map(b=>{const ok=b.lastAt>=today0(); const od=b.days.includes(dow); return `<span class="bchip ${ok?'done':'miss'} ${od?'od':''}">${ok?'✅':'❌'} ${esc(b.name)} <span class="small muted">${dayTxt(b.days)}</span></span>`;}).join('')}</div>
+    <p class="small muted">노란 테두리 = 오늘이 발주 요일인 지점 · ❌ = 오늘 OC 조사가 아직 없음</p>
+  </section>
+  ${done.length?`<section class="card"><details><summary>최근 7일 발주 완료 ${done.length}건</summary><div class="list" style="margin-top:8px">${done.map(o=>`<div><span>${esc(o.branch)} · ${esc(o.name)} <span class="num">${fmt(o.qty)}</span> ${esc(o.unit)}</span><span class="small muted">${fmtT(o.doneAt)}</span></div>`).join('')}</div></details></section>`:''}`;
+}
+
+/* ---------- 물류팀 · 설정 ---------- */
+async function logiSet(){
+  LG.tab='set'; setTop('물류팀 · 설정', homeLink()); $('#app').className='';
+  $('#app').innerHTML=logiTabs()+'<div class="card"><p class="muted"><span class="spin"></span> 시트에서 불러오는 중…</p></div>';
+  try{ LG.set=await call('logiSettings',LG.pin); LG.bE={}; LG.iE={}; logiSetRender(); }catch(e){ toast(e.message); }
+}
+const DSEL=(v,on)=>`<select class="t" style="min-height:38px;padding:4px 8px;width:auto" ${on}><option value="">–</option>${'월화수목금토일'.split('').map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('')}</select>`;
+function logiSetRender(){
+  const y0=window.scrollY;
+  const S2=LG.set; const parts=[...new Set(S2.branches.map(b=>b.part))];
+  const bv=b=>Object.assign({},b,LG.bE[b.code]||{}), iv=i=>Object.assign({},i,LG.iE[i.id]||{});
+  $('#app').innerHTML=`${logiTabs()}
+  <div class="banner soft"><span>여기서 고치고 아래 <b>저장</b>을 누르면 구글 시트에 바로 저장돼요. 시트에서 고쳐도 똑같이 사이트에 반영돼요.</span></div>
+  <section class="card"><h2><span class="tape">파트별 발주 요일</span> 한 번에 바꾸기</h2>
+    <div class="list">${parts.map(pt=>{ const f=S2.branches.find(b=>b.part===pt); const v=bv(f); return `<div><span><b>${esc(pt||'파트 없음')}</b> <span class="small muted">${S2.branches.filter(b=>b.part===pt).length}곳</span></span><span class="row">${DSEL(v.d1,`id="pd1_${esc(pt)}"`)}${DSEL(v.d2,`id="pd2_${esc(pt)}"`)}<button class="btn sm" onclick="logiPart('${esc(pt)}')">이 파트 전체에 적용</button></span></div>`;}).join('')}</div>
+  </section>
+  <section class="card"><h2>지점별 요일 · 규모 배수</h2>
+    <div class="tbl"><table><thead><tr><th>지점</th><th>파트</th><th>요일 ①</th><th>요일 ②</th><th>규모 배수</th></tr></thead><tbody>
+    ${S2.branches.map(b0=>{const b=bv(b0); return `<tr id="br_${esc(b.code)}" style="${LG.bE[b.code]?'background:var(--tape-soft)':''}"><td><b>${esc(b.name)}</b></td><td class="small muted">${esc(b.part)}</td>
+      <td>${DSEL(b.d1,`onchange="logiB('${esc(b.code)}','d1',this.value)"`)}</td><td>${DSEL(b.d2,`onchange="logiB('${esc(b.code)}','d2',this.value)"`)}</td>
+      <td><input class="qin" inputmode="decimal" value="${esc(b.mult)}" oninput="logiB('${esc(b.code)}','mult',this.value)" aria-label="${esc(b.name)} 규모 배수"></td></tr>`;}).join('')}
+    </tbody></table></div><p class="small muted">규모 배수: 창고가 크고 소비가 많은 지점은 1.5, 작은 지점은 0.5처럼. 발주선·기준 수량에 곱해져요.</p>
+  </section>
+  <section class="card"><h2>품목 기준 · 구매 링크</h2>${legend}
+    ${[1,2,3,4,5].map(z=>{const L=S2.items.filter(i=>i.zone===z); if(!L.length) return ''; return `<h3><span class="tape navy">${z}</span> ${ZN[z]}</h3><div class="tbl"><table><thead><tr><th>품목</th><th>단위</th><th class="n">발주선</th><th class="n">기준</th><th class="n">묶음</th><th>구매 링크</th><th>사용</th></tr></thead><tbody>
+      ${L.map(i0=>{const i=iv(i0); const k=esc(i.id); return `<tr id="it_${k}" style="${LG.iE[i.id]?'background:var(--tape-soft)':''}${i.use==='N'?';opacity:.55':''}"><td><b>${esc(i.name)}</b></td><td class="small">${esc(i.unit)}</td>
+        <td class="n"><input class="qin" inputmode="numeric" value="${esc(i.rp)}" oninput="logiI('${k}','rp',this.value)" aria-label="${esc(i.name)} 발주선"></td>
+        <td class="n"><input class="qin" inputmode="numeric" value="${esc(i.base)}" oninput="logiI('${k}','base',this.value)" aria-label="${esc(i.name)} 기준"></td>
+        <td class="n"><input class="qin" inputmode="numeric" value="${esc(i.pack)}" oninput="logiI('${k}','pack',this.value)" aria-label="${esc(i.name)} 묶음"></td>
+        <td><input class="t" style="min-height:38px;padding:4px 8px;min-width:180px" value="${esc(i.link)}" placeholder="https://" oninput="logiI('${k}','link',this.value)" aria-label="${esc(i.name)} 구매 링크"></td>
+        <td><select class="t" style="min-height:38px;padding:4px 8px;width:auto" onchange="logiI('${k}','use',this.value)"><option ${i.use!=='N'?'selected':''}>Y</option><option ${i.use==='N'?'selected':''}>N</option></select></td></tr>`;}).join('')}</tbody></table></div>`;}).join('')}
+    <p class="small muted">발주선 = 이 수량 이하면 발주 · 기준 = 발주하면 여기까지 채움 · 사용 N = OC 조사·발주에서 빠짐</p>
+  </section>`;
+  logiSetSticky(); window.scrollTo(0,y0);
+}
+function logiB(code,f,v){ LG.bE[code]=Object.assign(LG.bE[code]||{}, {[f]:v}); const r=document.getElementById('br_'+code); if(r) r.style.background='var(--tape-soft)'; logiSetSticky(); }
+function logiI(id,f,v){ LG.iE[id]=Object.assign(LG.iE[id]||{}, {[f]:v}); const r=document.getElementById('it_'+id); if(r) r.style.background='var(--tape-soft)'; logiSetSticky(); }
+function logiPart(pt){ const d1=document.getElementById('pd1_'+pt).value, d2=document.getElementById('pd2_'+pt).value; LG.set.branches.filter(b=>b.part===pt).forEach(b=>{ LG.bE[b.code]=Object.assign(LG.bE[b.code]||{},{d1,d2}); }); logiSetRender(); toast(`${pt} 요일을 ${d1||'–'}·${d2||'–'}로 바꿨어요. 저장을 눌러 주세요`); }
+function logiSetSticky(){
+  const n=Object.keys(LG.bE).length+Object.keys(LG.iE).length;
+  $('#sticky').innerHTML=`<div class="sticky"><div class="sticky-in" style="max-width:1100px"><span class="prog small">${n?`<span><span class="tape">변경 ${n}건</span> 저장 전이에요</span>`:'<span class="muted">바뀐 내용이 없어요</span>'}</span>${n?`<button class="btn" onclick="logiSet()">되돌리기</button>`:''}<button class="btn pri" id="setSave" ${n?'':'disabled'}>시트에 저장</button></div></div>`;
+  const b=$('#setSave'); if(b) b.onclick=logiSetSave;
+}
+async function logiSetSave(){
+  const b=$('#setSave'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
+  const bRows=Object.entries(LG.bE).map(([code,e])=>Object.assign({code}, (({d1,d2,mult})=>({d1,d2,mult}))(Object.assign({},LG.set.branches.find(x=>x.code===code),e))));
+  const iRows=Object.entries(LG.iE).map(([id,e])=>Object.assign({id}, (({rp,base,pack,link,use})=>({rp,base,pack,link,use}))(Object.assign({},LG.set.items.find(x=>x.id===id),e))));
+  const bad=iRows.find(r=>Number(r.base)<=Number(r.rp)); if(bad){ toast('기준 수량은 발주선보다 커야 해요'); b.disabled=false; b.textContent='시트에 저장'; return; }
+  try{
+    let n=0; if(bRows.length) n+=(await call('logiSaveBranches',{pin:LG.pin,rows:bRows})).n;
+    if(iRows.length) n+=(await call('logiSaveItems',{pin:LG.pin,rows:iRows})).n;
+    toast(`${n}건을 시트에 저장했어요`); await logiSet();
+  }catch(e){ toast(e.message); logiSetSticky(); }
+}
+
+async function logiDone(branch){
+  const oids=LG.d.orders.filter(o=>o.status==='요청'&&(!branch||o.branch===branch)).map(o=>o.oid);
+  try{ const r=await call('logiDone',{pin:LG.pin,oids}); toast(`${r.n}건을 발주 완료로 바꿨어요`); await logiOpen(LG.pin); }catch(e){ toast(e.message); }
+}
+function logiDoneAll(){ logiDone(null); }
+async function logiCopy(){
+  const d=LG.d, t=new Date(), ds=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  const txt=d.orders.filter(o=>o.status==='요청').map(o=>[ds,o.wh,o.id,o.eqty,o.ecu,o.branch].join('\t')).join('\n');
+  try{ await navigator.clipboard.writeText(txt); toast('복사했어요. 이카운트 업로드 양식에 붙여 넣으세요'); }
+  catch(e){ $('#copyBox').innerHTML=`<textarea class="copy" readonly>${esc(txt)}</textarea>`; const ta=$('#copyBox textarea'); ta.focus(); ta.select(); toast('선택된 내용을 복사하세요'); }
+}
+
+start();
+</script>
+</body>
+</html>
+
+</body></html>
